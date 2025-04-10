@@ -1,4 +1,6 @@
 package com.example.todolist
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.Alignment
 
 import android.app.Application
 import android.os.Bundle
@@ -135,31 +137,46 @@ fun TaskItem(
     }
 }
 
+@Composable
+fun EmptyTaskMessage(modifier: Modifier = Modifier) {
+    Text("No tasks available", modifier = modifier)
+}
+
 
 @Composable
 fun TodoScreen(viewModel: TaskViewModel) {
     val tasks by viewModel.tasks.collectAsState(initial = emptyList())
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize()
-    ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(vertical = 8.dp)
-        ) {
-            items(tasks) { task ->
-                TaskItem(
-                    task = task,
-                    onToggle = { updatedTask -> viewModel.updateTask(updatedTask) },
-                    onDelete = { viewModel.deleteTask(task) }
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+        if (tasks.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) {
+                EmptyTaskMessage(modifier = Modifier.align(Alignment.Center))
+            }
+
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentPadding = PaddingValues(vertical = 8.dp)
+            ) {
+                items(tasks) { task ->
+                    TaskItem(
+                        task = task,
+                        onToggle = { updatedTask -> viewModel.updateTask(updatedTask) },
+                        onDelete = { viewModel.deleteTask(task) }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
             }
         }
     }
 }
+
 
 
 
