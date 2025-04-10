@@ -22,9 +22,7 @@ import androidx.room.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
-// =======================
-// ROOM Setup: Entity, DAO, Database
-// =======================
+
 
 @Entity(tableName = "tasks")
 data class Task(
@@ -69,9 +67,7 @@ abstract class AppDatabase : RoomDatabase() {
     }
 }
 
-// =======================
-// ViewModel: Exposes tasks Flow & operations
-// =======================
+
 
 class TaskViewModel(application: Application) : AndroidViewModel(application) {
     private val dao = AppDatabase.getDatabase(application).taskDao()
@@ -96,11 +92,8 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
     }
 }
 
-// =======================
-// Composables
-// =======================
 
-// Header composable for displaying the app title.
+
 @Composable
 fun AppHeader() {
     Text(
@@ -113,7 +106,6 @@ fun AppHeader() {
     )
 }
 
-// A composable that displays a single task item.
 @Composable
 fun TaskItem(
     task: Task,
@@ -143,7 +135,6 @@ fun TaskItem(
     }
 }
 
-// A composable for the "Add Task" dialog.
 @Composable
 fun AddTaskDialog(onDismiss: () -> Unit, onAdd: (String, String) -> Unit) {
     var taskName by remember { mutableStateOf("") }
@@ -181,7 +172,6 @@ fun AddTaskDialog(onDismiss: () -> Unit, onAdd: (String, String) -> Unit) {
     )
 }
 
-// Main UI composable that displays the header, task list, and add dialog.
 @Composable
 fun TodoScreen(viewModel: TaskViewModel) {
     val tasks by viewModel.tasks.collectAsState(initial = emptyList())
@@ -200,7 +190,6 @@ fun TodoScreen(viewModel: TaskViewModel) {
             .padding(innerPadding)) {
             AppHeader()
             if (tasks.isEmpty()) {
-                // Show fallback text if no tasks exist.
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -236,10 +225,6 @@ fun TodoScreen(viewModel: TaskViewModel) {
         )
     }
 }
-
-// =======================
-// MainActivity
-// =======================
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
