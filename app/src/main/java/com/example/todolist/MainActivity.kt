@@ -1,48 +1,30 @@
 package com.example.todolist
-import androidx.compose.foundation.layout.Box
-import androidx.compose.ui.Alignment
 
 import android.app.Application
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.material3.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.room.ColumnInfo
-import androidx.room.Dao
-import androidx.room.Database
-import androidx.room.Delete
-import androidx.room.Entity
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
-import androidx.room.PrimaryKey
-import androidx.room.Query
-import androidx.room.Room
-import androidx.room.RoomDatabase
+import androidx.room.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
-
+// =======================
+// ROOM Setup: Entity, DAO, Database
+// =======================
 
 @Entity(tableName = "tasks")
 data class Task(
@@ -87,11 +69,19 @@ abstract class AppDatabase : RoomDatabase() {
     }
 }
 
-
+// =======================
+// ViewModel: Exposes tasks Flow & operations
+// =======================
 
 class TaskViewModel(application: Application) : AndroidViewModel(application) {
     private val dao = AppDatabase.getDatabase(application).taskDao()
     val tasks: Flow<List<Task>> = dao.getAllTasks()
+
+    fun addTask(taskName: String, body: String) {
+        viewModelScope.launch {
+            dao.insertTask(Task(taskName = taskName, body = body, isCompleted = false))
+        }
+    }
 
     fun updateTask(task: Task) {
         viewModelScope.launch {
@@ -106,19 +96,35 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
     }
 }
 
+// =======================
+// Composables
+// =======================
 
+// Header composable for displaying the app title.
+@Composable
+fun AppHeader() {
+    Text(
+        text = "Joy's Todo App",
+        style = MaterialTheme.typography.headlineMedium,
+        fontSize = 28.sp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    )
+}
 
+// A composable that displays a single task item.
 @Composable
 fun TaskItem(
     task: Task,
     onToggle: (Task) -> Unit,
     onDelete: () -> Unit
 ) {
-    androidx.compose.foundation.layout.Row(
+    Row(
         modifier = Modifier
-            .fillMaxSize()
+            .fillMaxWidth()
             .padding(8.dp),
-        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Checkbox(
             checked = task.isCompleted,
@@ -137,48 +143,103 @@ fun TaskItem(
     }
 }
 
+// A composable for the "Add Task" dialog.
 @Composable
-fun EmptyTaskMessage(modifier: Modifier = Modifier) {
-    Text("No tasks available", modifier = modifier)
+fun AddTaskDialog(onDismiss: () -> Unit, onAdd: (String, String) -> Unit) {
+    var taskName by remember { mutableStateOf("") }
+    var taskBody by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add New Task") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = taskName,
+                    onValueChange = { taskName = it },
+                    label = { Text("Task Name") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = taskBody,
+                    onValueChange = { taskBody = it },
+                    label = { Text("Task Description") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onAdd(taskName, taskBody) }) {
+                Text("Add")
+            }
+        },
+        dismissButton = {
+            Button(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
-
+// Main UI composable that displays the header, task list, and add dialog.
 @Composable
 fun TodoScreen(viewModel: TaskViewModel) {
     val tasks by viewModel.tasks.collectAsState(initial = emptyList())
+    var showAddDialog by remember { mutableStateOf(false) }
 
-    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-        if (tasks.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-            ) {
-                EmptyTaskMessage(modifier = Modifier.align(Alignment.Center))
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        floatingActionButton = {
+            FloatingActionButton(onClick = { showAddDialog = true }) {
+                Text("+")
             }
-
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentPadding = PaddingValues(vertical = 8.dp)
-            ) {
-                items(tasks) { task ->
-                    TaskItem(
-                        task = task,
-                        onToggle = { updatedTask -> viewModel.updateTask(updatedTask) },
-                        onDelete = { viewModel.deleteTask(task) }
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+        }
+    ) { innerPadding ->
+        Column(modifier = Modifier
+            .fillMaxSize()
+            .padding(innerPadding)) {
+            AppHeader()
+            if (tasks.isEmpty()) {
+                // Show fallback text if no tasks exist.
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("No tasks available")
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(vertical = 8.dp)
+                ) {
+                    items(tasks) { task ->
+                        TaskItem(
+                            task = task,
+                            onToggle = { updatedTask -> viewModel.updateTask(updatedTask) },
+                            onDelete = { viewModel.deleteTask(task) }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
                 }
             }
         }
     }
+    if (showAddDialog) {
+        AddTaskDialog(
+            onDismiss = { showAddDialog = false },
+            onAdd = { name, body ->
+                viewModel.addTask(name, body)
+                showAddDialog = false
+            }
+        )
+    }
 }
 
-
-
+// =======================
+// MainActivity
+// =======================
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
